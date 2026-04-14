@@ -9,6 +9,7 @@ from validix.errors import (
     ValidatorError,
 )
 from validix.fields import Field, FieldInfo
+from validix.validators import field_validator, model_validator
 
 __version__ = "0.1.0"
 
@@ -20,4 +21,6 @@ __all__ = [
     "FieldInfo",
     "ValidationError",
     "ValidatorError",
+    "field_validator",
+    "model_validator",
 ]
