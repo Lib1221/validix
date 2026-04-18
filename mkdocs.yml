@@ -1,0 +1,66 @@
+site_name: validix
+site_description: A lightweight, fast data validation library for Python.
+site_url: https://github.com/Lib1221/validix
+repo_url: https://github.com/Lib1221/validix
+repo_name: Lib1221/validix
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Home: index.md
+  - Getting started: getting_started.md
+  - User guide:
+      - Models: guide/models.md
+      - Fields and constraints: guide/fields.md
+      - Validators: guide/validators.md
+      - Errors: guide/errors.md
+      - Configuration: guide/config.md
+  - API reference:
+      - BaseModel: api/basemodel.md
+      - Field: api/field.md
+      - Errors: api/errors.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            docstring_style: google
