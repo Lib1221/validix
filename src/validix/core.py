@@ -147,6 +147,9 @@ class _ModelMeta(type):
         cls.model_fields = fields  # type: ignore[attr-defined]
         cls.__validix_field_validators__ = field_validators  # type: ignore[attr-defined]
         cls.__validix_model_validators__ = model_validators  # type: ignore[attr-defined]
+        # Pre-compute the iteration views used in the hot path.
+        cls.__validix_fields_items__ = tuple(fields.items())  # type: ignore[attr-defined]
+        cls.__validix_known_keys__ = frozenset(fields)  # type: ignore[attr-defined]
 
         # Build alias lookup
         alias_map: dict[str, str] = {}
@@ -166,6 +169,8 @@ class BaseModel(metaclass=_ModelMeta):
     __validix_field_validators__: ClassVar[dict[str, list[FieldValidator]]] = {}
     __validix_model_validators__: ClassVar[list[ModelValidator]] = []
     __validix_alias_map__: ClassVar[dict[str, str]] = {}
+    __validix_fields_items__: ClassVar[tuple] = ()  # type: ignore[type-arg]
+    __validix_known_keys__: ClassVar[frozenset[str]] = frozenset()
 
     __slots__ = ("__dict__",)
 
@@ -272,6 +277,10 @@ class BaseModel(metaclass=_ModelMeta):
     def _validate_data(self, data: Mapping[str, Any]) -> tuple[dict[str, Any], list[ErrorDetail]]:
         cls = type(self)
         cfg = cls.model_config
+        # Fast paths cached on the class by the metaclass:
+        fields_items = cls.__validix_fields_items__
+        field_validators = cls.__validix_field_validators__
+        alias_map = cls.__validix_alias_map__
         errors: list[ErrorDetail] = []
         validated: dict[str, Any] = {}
 
@@ -290,15 +299,15 @@ class BaseModel(metaclass=_ModelMeta):
                     mutable_data = dict(result)
 
         # Resolve aliases
-        if cls.__validix_alias_map__:
-            for alias, fname in cls.__validix_alias_map__.items():
+        if alias_map:
+            for alias, fname in alias_map.items():
                 if alias in mutable_data and fname not in mutable_data:
                     mutable_data[fname] = mutable_data.pop(alias)
                 elif alias in mutable_data and not cfg.populate_by_name:
                     mutable_data[fname] = mutable_data.pop(alias)
 
         # Extra-key handling
-        known = set(cls.model_fields)
+        known = cls.__validix_known_keys__
         extras = [k for k in mutable_data if k not in known]
         if cfg.extra == "forbid" and extras:
             for k in extras:
@@ -307,7 +316,7 @@ class BaseModel(metaclass=_ModelMeta):
                 )
 
         # Validate each known field
-        for fname, finfo in cls.model_fields.items():
+        for fname, finfo in fields_items:
             if fname in mutable_data:
                 raw = mutable_data[fname]
             elif finfo.has_default:
@@ -321,7 +330,7 @@ class BaseModel(metaclass=_ModelMeta):
                 continue
 
             # before-mode field validators
-            for fv in cls.__validix_field_validators__.get(fname, []):
+            for fv in field_validators.get(fname, ()):
                 if fv.mode == "before":
                     try:
                         raw = fv.func(cls, raw)
@@ -353,7 +362,7 @@ class BaseModel(metaclass=_ModelMeta):
                 continue
 
             # after-mode field validators
-            for fv in cls.__validix_field_validators__.get(fname, []):
+            for fv in field_validators.get(fname, ()):
                 if fv.mode == "after":
                     try:
                         value = fv.func(cls, value)
