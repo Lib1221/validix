@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `populate_by_name=True` no longer raises `extra_forbidden` when both the
+  alias and the canonical field name are supplied in the same input.
+
 ## [0.1.0] - 2026-05-04
 
 ### Added

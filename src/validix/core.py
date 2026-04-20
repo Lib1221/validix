@@ -301,9 +301,19 @@ class BaseModel(metaclass=_ModelMeta):
         # Resolve aliases
         if alias_map:
             for alias, fname in alias_map.items():
-                if alias in mutable_data and fname not in mutable_data:
+                if alias not in mutable_data:
+                    continue
+                if fname not in mutable_data:
+                    # Promote the alias key to the canonical field name.
                     mutable_data[fname] = mutable_data.pop(alias)
-                elif alias in mutable_data and not cfg.populate_by_name:
+                elif cfg.populate_by_name:
+                    # Both names supplied; prefer the canonical name and drop
+                    # the alias so it doesn't trip extra='forbid' below.
+                    mutable_data.pop(alias)
+                else:
+                    # populate_by_name is False so the user is *only* allowed
+                    # to use the alias; the attribute-name entry is treated
+                    # as if it weren't there.
                     mutable_data[fname] = mutable_data.pop(alias)
 
         # Extra-key handling
