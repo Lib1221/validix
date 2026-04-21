@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BaseModel.model_copy(*, update=None, deep=False)` for cloning models
+  with optional re-validated overrides.
+
 ### Fixed
 
 - `populate_by_name=True` no longer raises `extra_forbidden` when both the

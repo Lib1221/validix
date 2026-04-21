@@ -221,6 +221,35 @@ class BaseModel(metaclass=_ModelMeta):
             ) from exc
         return cls.model_validate(parsed)
 
+    def model_copy(
+        self,
+        *,
+        update: Mapping[str, Any] | None = None,
+        deep: bool = False,
+    ) -> "BaseModel":
+        """Return a copy of this model, optionally overriding some fields.
+
+        When ``update`` is supplied the new values are *re-validated* by
+        going through :class:`BaseModel`-construction, so this is also a
+        convenient way to coerce a partial patch.
+
+        Set ``deep=True`` to recursively copy nested models / containers.
+        """
+
+        cls = type(self)
+        if update is None:
+            data: dict[str, Any] = (
+                copy.deepcopy(self.__dict__) if deep else dict(self.__dict__)
+            )
+            new = cls.__new__(cls)
+            object.__setattr__(new, "__dict__", data)
+            return new
+        merged = dict(self.__dict__)
+        merged.update(update)
+        if deep:
+            merged = copy.deepcopy(merged)
+        return cls(**merged)
+
     def model_dump(self, *, by_alias: bool = False, exclude_none: bool = False) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for fname, finfo in type(self).model_fields.items():
