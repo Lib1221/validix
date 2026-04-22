@@ -327,23 +327,28 @@ class BaseModel(metaclass=_ModelMeta):
                 if isinstance(result, Mapping):
                     mutable_data = dict(result)
 
-        # Resolve aliases
+        # Resolve aliases. Pydantic-style semantics:
+        #   populate_by_name=False (default): only the alias is accepted;
+        #     supplying the canonical attribute name is treated as an
+        #     unknown input key (silently dropped under extra='ignore',
+        #     rejected under extra='forbid').
+        #   populate_by_name=True: both names are accepted. If both are
+        #     supplied, the canonical name wins and the alias is dropped.
         if alias_map:
+            if not cfg.populate_by_name:
+                # First, evict canonical-name input for any aliased field —
+                # it's not an accepted key in this mode.
+                for fname in alias_map.values():
+                    if fname in mutable_data:
+                        # Move the value to a synthetic key so it surfaces
+                        # via the extras pipeline below if extra='forbid'.
+                        mutable_data[f"_disallowed:{fname}"] = mutable_data.pop(fname)
             for alias, fname in alias_map.items():
-                if alias not in mutable_data:
-                    continue
-                if fname not in mutable_data:
-                    # Promote the alias key to the canonical field name.
+                if alias in mutable_data and fname not in mutable_data:
                     mutable_data[fname] = mutable_data.pop(alias)
-                elif cfg.populate_by_name:
-                    # Both names supplied; prefer the canonical name and drop
-                    # the alias so it doesn't trip extra='forbid' below.
+                elif alias in mutable_data and fname in mutable_data:
+                    # populate_by_name=True path; canonical name wins
                     mutable_data.pop(alias)
-                else:
-                    # populate_by_name is False so the user is *only* allowed
-                    # to use the alias; the attribute-name entry is treated
-                    # as if it weren't there.
-                    mutable_data[fname] = mutable_data.pop(alias)
 
         # Extra-key handling
         known = cls.__validix_known_keys__

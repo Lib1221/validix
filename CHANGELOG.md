@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BaseModel.model_copy(*, update=None, deep=False)` for cloning models
   with optional re-validated overrides.
 
+### Changed
+
+- Field-alias semantics now match Pydantic: with `populate_by_name=False`
+  (the default), only the alias is accepted as an input key. Attribute-name
+  input is treated as an unknown key (and therefore rejected by
+  `extra='forbid'` instead of silently overriding the alias).
+
 ### Fixed
 
 - `populate_by_name=True` no longer raises `extra_forbidden` when both the
