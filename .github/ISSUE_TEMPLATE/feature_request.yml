@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an idea for validix
+title: "[feat]: "
+labels: ["enhancement", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a new feature! Please explain *why* the feature
+        would be useful, not just *what* it should do.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      placeholder: Today I have to ... which is annoying because ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API or behaviour
+      render: python
+      placeholder: |
+        # Example of how I'd like the new API to look:
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Is there a workaround you tried that didn't fit?

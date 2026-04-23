@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a bug in validix
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please include a
+        minimal reproducer — it makes triage **much** faster.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: When I do X, Y happens, but I expected Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: Smallest snippet of code that triggers the bug.
+      render: python
+      placeholder: |
+        from validix import BaseModel
+
+        class M(BaseModel):
+            ...
+    validations:
+      required: true
+
+  - type: input
+    id: validix-version
+    attributes:
+      label: validix version
+      placeholder: "e.g. 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.12.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
