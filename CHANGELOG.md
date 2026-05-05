@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Dockerfile` (multi-stage targets `test` and `docs`) plus `docker-compose.yml`
+  for running pytest and serving MkDocs without a local virtualenv.
+
 ## [0.1.0] - 2026-04-24
 
 ### Added

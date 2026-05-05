@@ -1,0 +1,44 @@
+# validix — Docker Compose helpers
+#
+# Run tests (default image target):
+#   docker compose run --rm test
+#
+# Preview docs at http://localhost:8000/
+#   docker compose --profile docs up --build docs
+#
+# Interactive shell with validix + dev tools installed:
+#   docker compose --profile dev run --rm shell
+
+name: validix
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    image: validix:test
+
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: docs
+    image: validix:docs
+    ports:
+      - "${MKDOCS_PORT:-8000}:8000"
+    profiles:
+      - docs
+
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    image: validix:test
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    working_dir: /app
+    profiles:
+      - dev

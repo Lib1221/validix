@@ -45,6 +45,32 @@ pip install validix
 
 Requires **Python 3.9+**.
 
+## Docker
+
+Reproduce CI locally without installing Python tooling on your machine:
+
+```bash
+# Full pytest suite (same dev extras as pip install ".[dev]")
+docker compose run --rm test
+
+# Or plain Docker:
+docker build -t validix:test --target test .
+docker run --rm validix:test
+```
+
+Preview the MkDocs site (binds **8000** by default; override with `MKDOCS_PORT`):
+
+```bash
+docker compose --profile docs up --build docs
+# → http://localhost:8000/
+```
+
+Drop into a shell with `validix` and dev dependencies installed:
+
+```bash
+docker compose --profile dev run --rm shell
+```
+
 ## Features
 
 - ✅ Type-hint based schemas

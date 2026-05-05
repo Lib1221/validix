@@ -1,0 +1,38 @@
+# VCS / env (never ship into the image)
+.git
+.gitignore
+.venv
+venv
+env
+.env
+.env.*
+
+# Python caches & tooling
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.hypothesis
+.coverage
+.coverage.*
+htmlcov
+cover
+
+# Build artefacts
+build
+dist
+*.egg-info
+.wheels
+
+# Docs output (rebuilt inside docs stage if needed)
+/site
+
+# IDE / OS
+.idea
+.vscode
+*.swp
+.DS_Store
+
+# Archives / misc
+*.zip
