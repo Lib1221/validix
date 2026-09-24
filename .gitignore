@@ -140,3 +140,18 @@ cython_debug/
 # OS
 .DS_Store
 Thumbs.db
+
+# Added: common build, cache, secret and editor files
+.venv/
+.ipynb_checkpoints/
+*.sqlite3
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+data/raw/
+data/processed/
+models/
+wandb/
+.env.*
+!.env.example
