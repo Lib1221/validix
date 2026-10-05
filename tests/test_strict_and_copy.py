@@ -99,6 +99,7 @@ def test_extra_ignore_silently_drops() -> None:
 # model_copy
 # --------------------------------------------------------------------------
 
+
 class _Mutable(BaseModel):
     name: str
     tags: list[str] = Field(default_factory=list)

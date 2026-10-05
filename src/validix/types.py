@@ -12,7 +12,6 @@ import types
 import typing
 from typing import Any, Union, get_args, get_origin
 
-
 __all__ = [
     "UNSET",
     "is_union",
@@ -28,9 +27,9 @@ __all__ = [
 class _UnsetType:
     """Sentinel for "no value given" — distinct from ``None``."""
 
-    _instance: "_UnsetType | None" = None
+    _instance: _UnsetType | None = None
 
-    def __new__(cls) -> "_UnsetType":
+    def __new__(cls) -> _UnsetType:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -45,9 +44,9 @@ class _UnsetType:
 UNSET: Any = _UnsetType()
 
 
-_UNION_TYPES: tuple[type, ...]
+_UNION_TYPES: tuple[Any, ...]
 if sys.version_info >= (3, 10):
-    _UNION_TYPES = (typing.Union, types.UnionType)  # type: ignore[attr-defined]
+    _UNION_TYPES = (typing.Union, types.UnionType)
 else:  # pragma: no cover
     _UNION_TYPES = (typing.Union,)
 
@@ -58,7 +57,7 @@ def is_union(tp: Any) -> bool:
     origin = get_origin(tp)
     if origin is Union:
         return True
-    if sys.version_info >= (3, 10) and origin is types.UnionType:  # type: ignore[attr-defined]
+    if sys.version_info >= (3, 10) and origin is types.UnionType:
         return True
     return False
 
@@ -89,7 +88,7 @@ def unwrap_optional(tp: Any) -> Any:
         return tp
     if len(args) == 1:
         return args[0]
-    return Union[args]  # type: ignore[return-value]
+    return Union[args]
 
 
 def get_type_args(tp: Any) -> tuple[Any, ...]:
@@ -106,6 +105,6 @@ def type_name(tp: Any) -> str:
     if tp is type(None):
         return "NoneType"
     name = getattr(tp, "__name__", None)
-    if name:
+    if isinstance(name, str) and name:
         return name
     return repr(tp).replace("typing.", "")

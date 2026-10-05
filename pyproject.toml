@@ -88,12 +88,18 @@ ignore = ["E501"]  # handled by formatter
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B011"]
 
+[tool.ruff.lint.pyupgrade]
+# validix reads model annotations at runtime with get_type_hints(), so keep
+# Optional[X] / Union[...] instead of X | None while Python 3.9 is supported.
+keep-runtime-typing = true
+
 [tool.black]
 line-length = 100
 target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.mypy]
-python_version = "3.9"
+# mypy 2.x can no longer target 3.9; the CI test matrix still covers 3.9 at runtime.
+python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
