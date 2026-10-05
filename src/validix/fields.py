@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field as dc_field
-from typing import Any, Callable, Iterable, Pattern
+from collections.abc import Iterable
+from dataclasses import dataclass
+from dataclasses import field as dc_field
+from re import Pattern
+from typing import Any, Callable
 
 from validix.errors import ConfigError, ErrorDetail
 from validix.types import UNSET
-
 
 __all__ = ["FieldInfo", "Field"]
 
@@ -86,24 +88,39 @@ class FieldInfo:
 
         if numeric is not None:
             if self.gt is not None and not numeric > self.gt:
-                errors.append(self._err(loc, value, "greater_than", f"must be > {self.gt}", {"gt": self.gt}))
+                errors.append(
+                    self._err(loc, value, "greater_than", f"must be > {self.gt}", {"gt": self.gt})
+                )
             if self.ge is not None and not numeric >= self.ge:
-                errors.append(self._err(loc, value, "greater_than_equal", f"must be >= {self.ge}", {"ge": self.ge}))
-            if self.lt is not None and not numeric < self.lt:
-                errors.append(self._err(loc, value, "less_than", f"must be < {self.lt}", {"lt": self.lt}))
-            if self.le is not None and not numeric <= self.le:
-                errors.append(self._err(loc, value, "less_than_equal", f"must be <= {self.le}", {"le": self.le}))
-            if self.multiple_of is not None and self.multiple_of != 0:
-                if (numeric % self.multiple_of) != 0:
-                    errors.append(
-                        self._err(
-                            loc,
-                            value,
-                            "multiple_of",
-                            f"must be a multiple of {self.multiple_of}",
-                            {"multiple_of": self.multiple_of},
-                        )
+                errors.append(
+                    self._err(
+                        loc, value, "greater_than_equal", f"must be >= {self.ge}", {"ge": self.ge}
                     )
+                )
+            if self.lt is not None and not numeric < self.lt:
+                errors.append(
+                    self._err(loc, value, "less_than", f"must be < {self.lt}", {"lt": self.lt})
+                )
+            if self.le is not None and not numeric <= self.le:
+                errors.append(
+                    self._err(
+                        loc, value, "less_than_equal", f"must be <= {self.le}", {"le": self.le}
+                    )
+                )
+            if (
+                self.multiple_of is not None
+                and self.multiple_of != 0
+                and (numeric % self.multiple_of) != 0
+            ):
+                errors.append(
+                    self._err(
+                        loc,
+                        value,
+                        "multiple_of",
+                        f"must be a multiple of {self.multiple_of}",
+                        {"multiple_of": self.multiple_of},
+                    )
+                )
 
         if isinstance(value, (str, bytes, list, tuple, set, frozenset, dict)):
             length = len(value)
@@ -128,17 +145,20 @@ class FieldInfo:
                     )
                 )
 
-        if self._compiled_pattern is not None and isinstance(value, str):
-            if not self._compiled_pattern.search(value):
-                errors.append(
-                    self._err(
-                        loc,
-                        value,
-                        "string_pattern_mismatch",
-                        f"does not match pattern {self._compiled_pattern.pattern!r}",
-                        {"pattern": self._compiled_pattern.pattern},
-                    )
+        if (
+            self._compiled_pattern is not None
+            and isinstance(value, str)
+            and not self._compiled_pattern.search(value)
+        ):
+            errors.append(
+                self._err(
+                    loc,
+                    value,
+                    "string_pattern_mismatch",
+                    f"does not match pattern {self._compiled_pattern.pattern!r}",
+                    {"pattern": self._compiled_pattern.pattern},
                 )
+            )
 
         return errors
 

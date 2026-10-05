@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
-from typing import Any, ClassVar, Mapping, get_type_hints
+from collections.abc import Mapping
+from typing import Any, ClassVar, get_type_hints
 
 from validix.coercion import parse_bool, parse_float, parse_int, parse_str
 from validix.errors import ConfigError, ErrorDetail, ValidationError
@@ -17,7 +19,6 @@ from validix.types import (
     is_optional,
     is_union,
     type_name,
-    unwrap_optional,
 )
 from validix.validators import (
     FieldValidator,
@@ -25,7 +26,6 @@ from validix.validators import (
     get_field_validator,
     get_model_validator,
 )
-
 
 __all__ = ["BaseModel", "ModelConfig"]
 
@@ -103,9 +103,9 @@ class _ModelMeta(type):
             if isinstance(attr_value, FieldInfo):
                 finfo = attr_value
             elif attr_value is UNSET:
-                finfo = Field()  # type: ignore[assignment]
+                finfo = Field()
             else:
-                finfo = Field(default=attr_value)  # type: ignore[assignment]
+                finfo = Field(default=attr_value)
 
             finfo.name = fname
             finfo.annotation = resolved
@@ -117,10 +117,8 @@ class _ModelMeta(type):
 
             # Don't leak Field()/FieldInfo onto the class itself
             if hasattr(cls, fname) and isinstance(getattr(cls, fname), FieldInfo):
-                try:
+                with contextlib.suppress(AttributeError):
                     delattr(cls, fname)
-                except AttributeError:  # pragma: no cover
-                    pass
 
         # ---- Discover validators ------------------------------------------------
         field_validators: dict[str, list[FieldValidator]] = {}
@@ -200,7 +198,7 @@ class BaseModel(metaclass=_ModelMeta):
     # Public API
     # ------------------------------------------------------------------
     @classmethod
-    def model_validate(cls, data: Any) -> "BaseModel":
+    def model_validate(cls, data: Any) -> BaseModel:
         if isinstance(data, cls):
             return data
         if not isinstance(data, Mapping):
@@ -211,13 +209,17 @@ class BaseModel(metaclass=_ModelMeta):
         return cls(**dict(data))
 
     @classmethod
-    def model_validate_json(cls, data: str | bytes) -> "BaseModel":
+    def model_validate_json(cls, data: str | bytes) -> BaseModel:
         try:
             parsed = json.loads(data)
         except json.JSONDecodeError as exc:
             raise ValidationError(
                 cls.__name__,
-                [ErrorDetail(loc=(), msg=f"invalid JSON: {exc.msg}", type="json_invalid", input=data)],
+                [
+                    ErrorDetail(
+                        loc=(), msg=f"invalid JSON: {exc.msg}", type="json_invalid", input=data
+                    )
+                ],
             ) from exc
         return cls.model_validate(parsed)
 
@@ -226,7 +228,7 @@ class BaseModel(metaclass=_ModelMeta):
         *,
         update: Mapping[str, Any] | None = None,
         deep: bool = False,
-    ) -> "BaseModel":
+    ) -> BaseModel:
         """Return a copy of this model, optionally overriding some fields.
 
         When ``update`` is supplied the new values are *re-validated* by
@@ -238,9 +240,7 @@ class BaseModel(metaclass=_ModelMeta):
 
         cls = type(self)
         if update is None:
-            data: dict[str, Any] = (
-                copy.deepcopy(self.__dict__) if deep else dict(self.__dict__)
-            )
+            data: dict[str, Any] = copy.deepcopy(self.__dict__) if deep else dict(self.__dict__)
             new = cls.__new__(cls)
             object.__setattr__(new, "__dict__", data)
             return new
@@ -292,7 +292,7 @@ class BaseModel(metaclass=_ModelMeta):
     def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
             return NotImplemented
-        return self.__dict__ == other.__dict__  # type: ignore[union-attr]
+        return self.__dict__ == other.__dict__
 
     def __hash__(self) -> int:
         cfg = type(self).model_config
@@ -321,7 +321,9 @@ class BaseModel(metaclass=_ModelMeta):
                     result = mv.func(cls, mutable_data)
                 except (ValueError, TypeError, AssertionError) as exc:
                     errors.append(
-                        ErrorDetail(loc=(), msg=str(exc), type="model_validator", input=mutable_data)
+                        ErrorDetail(
+                            loc=(), msg=str(exc), type="model_validator", input=mutable_data
+                        )
                     )
                     return validated, errors
                 if isinstance(result, Mapping):
@@ -356,7 +358,12 @@ class BaseModel(metaclass=_ModelMeta):
         if cfg.extra == "forbid" and extras:
             for k in extras:
                 errors.append(
-                    ErrorDetail(loc=(k,), msg="extra fields are not permitted", type="extra_forbidden", input=mutable_data[k])
+                    ErrorDetail(
+                        loc=(k,),
+                        msg="extra fields are not permitted",
+                        type="extra_forbidden",
+                        input=mutable_data[k],
+                    )
                 )
 
         # Validate each known field
@@ -636,7 +643,9 @@ def _type_err(loc: tuple[str | int, ...], expected: str, value: Any) -> ErrorDet
     )
 
 
-def _coerce_err(loc: tuple[str | int, ...], expected: str, value: Any, exc: Exception) -> ErrorDetail:
+def _coerce_err(
+    loc: tuple[str | int, ...], expected: str, value: Any, exc: Exception
+) -> ErrorDetail:
     return ErrorDetail(
         loc=loc,
         msg=f"could not coerce to {expected}: {exc}",
@@ -656,5 +665,7 @@ def _to_python(value: Any, *, by_alias: bool, exclude_none: bool) -> Any:
     if isinstance(value, set):
         return [_to_python(v, by_alias=by_alias, exclude_none=exclude_none) for v in value]
     if isinstance(value, dict):
-        return {k: _to_python(v, by_alias=by_alias, exclude_none=exclude_none) for k, v in value.items()}
+        return {
+            k: _to_python(v, by_alias=by_alias, exclude_none=exclude_none) for k, v in value.items()
+        }
     return value

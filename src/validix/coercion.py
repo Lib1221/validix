@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 __all__ = [
     "parse_bool",
     "parse_int",
@@ -61,7 +60,7 @@ def parse_int(value: Any) -> int:
                 raise ValueError(f"cannot coerce {value!r} to int") from None
             if f.is_integer():
                 return int(f)
-            raise ValueError(f"cannot coerce non-integer string {value!r} to int")
+            raise ValueError(f"cannot coerce non-integer string {value!r} to int") from None
     raise ValueError(f"cannot coerce {value!r} to int")
 
 
