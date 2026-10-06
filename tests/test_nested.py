@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 import pytest
 
@@ -94,7 +94,7 @@ def test_optional_field_accepts_value() -> None:
 
 
 class _UnionModel(BaseModel):
-    value: int | str
+    value: Union[int, str]
 
 
 def test_union_picks_first_match() -> None:

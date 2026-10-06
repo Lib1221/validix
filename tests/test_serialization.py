@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 import pytest
 
@@ -12,7 +13,7 @@ from validix import BaseModel, Field, ValidationError
 class _M(BaseModel):
     id: int
     name: str = Field(alias="full_name")
-    age: int | None = None
+    age: Optional[int] = None
 
 
 def test_model_dump_uses_attribute_names_by_default() -> None:

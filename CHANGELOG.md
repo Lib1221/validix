@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Dockerfile` (multi-stage targets `test` and `docs`) plus `docker-compose.yml`
   for running pytest and serving MkDocs without a local virtualenv.
+- `BaseModel.model_rebuild()` for models defined inside a function that refer
+  to models defined later in the same function.
+
+### Fixed
+
+- Forward references are resolved: self-referencing models, references to
+  models defined later in the module, and models defined inside functions.
+  These annotations used to stay as strings and the fields weren't validated
+  at all. Under `from __future__ import annotations`, one unresolved
+  annotation switched off validation for every field of the model
+  ([#14](https://github.com/Lib1221/validix/issues/14)).
+- An annotation that can't be resolved now raises `ConfigError` when the model
+  is first used, instead of silently skipping validation.
 
 ## [0.1.0] - 2026-04-24
 

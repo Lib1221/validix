@@ -5,8 +5,19 @@ from __future__ import annotations
 import contextlib
 import copy
 import json
+import sys
 from collections.abc import Mapping
-from typing import Any, ClassVar, get_type_hints
+from typing import (
+    Annotated,
+    Any,
+    ClassVar,
+    ForwardRef,
+    Literal,
+    Optional,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from validix.coercion import parse_bool, parse_float, parse_int, parse_str
 from validix.errors import ConfigError, ErrorDetail, ValidationError
@@ -45,6 +56,54 @@ class ModelConfig:
     extra: str = "ignore"
     frozen: bool = False
     populate_by_name: bool = False
+
+
+def _defining_namespace(depth: int = 1) -> dict[str, Any] | None:
+    """Snapshot the local names of the scope that is creating a model.
+
+    *depth* counts frames above the caller of this helper. Module-level code
+    returns ``None``: ``get_type_hints`` reads module globals live, so names
+    defined later in the module still resolve when the model is first used.
+    """
+
+    try:
+        frame = sys._getframe(depth + 1)
+    except ValueError:  # pragma: no cover - not enough frames
+        return None
+    if frame.f_locals is frame.f_globals:
+        return None
+    return dict(frame.f_locals)
+
+
+def _resolve_type_hints(cls: type, localns: dict[str, Any] | None) -> dict[str, Any]:
+    """``get_type_hints`` that also sees the defining scope and the class itself."""
+
+    namespace: dict[str, Any] = dict(localns or {})
+    namespace.update(vars(cls))
+    namespace[cls.__name__] = cls  # self-references always mean this class
+    return get_type_hints(cls, localns=namespace, include_extras=True)
+
+
+def _has_forward_ref(tp: Any) -> bool:
+    """True if *tp* is, or contains, a string annotation or ``ForwardRef``."""
+
+    if isinstance(tp, (str, ForwardRef)):
+        return True
+    origin = get_origin(tp)
+    if origin is Literal:
+        return False  # Literal["cat"] holds values, not annotations
+    args = get_args(tp)
+    if origin is Annotated:
+        args = args[:1]  # skip the metadata
+    return any(_has_forward_ref(arg) for arg in args)
+
+
+def _set_annotation(finfo: FieldInfo, annotation: Any) -> None:
+    finfo.annotation = annotation
+    finfo.required = not finfo.has_default and not is_optional(annotation)
+    if not finfo.required and finfo.default is UNSET and finfo.default_factory is None:
+        # Optional[X] with no explicit default → default to None
+        finfo.default = None
 
 
 class _ModelMeta(type):
@@ -87,10 +146,21 @@ class _ModelMeta(type):
                     fields[fname] = copy.copy(finfo)
 
         # ---- Resolve annotations on this class ---------------------------------
+        # Annotations that can't be resolved yet (self-references, models
+        # defined later, names local to a function) stay unresolved here and
+        # are resolved on first use; see BaseModel._resolve_forward_refs().
+        localns = _defining_namespace()
         try:
             hints = get_type_hints(cls, include_extras=True)
         except Exception:
-            hints = dict(getattr(cls, "__annotations__", {}))
+            try:
+                hints = _resolve_type_hints(cls, localns)
+            except Exception:
+                hints = {}
+
+        for fname, finfo in fields.items():
+            if _has_forward_ref(finfo.annotation) and fname in hints:
+                _set_annotation(finfo, hints[fname])
 
         own_annotations = dict(getattr(cls, "__annotations__", {}))
 
@@ -108,11 +178,7 @@ class _ModelMeta(type):
                 finfo = Field(default=attr_value)
 
             finfo.name = fname
-            finfo.annotation = resolved
-            finfo.required = not finfo.has_default and not is_optional(resolved)
-            if not finfo.required and finfo.default is UNSET and finfo.default_factory is None:
-                # Optional[X] with no explicit default → default to None
-                finfo.default = None
+            _set_annotation(finfo, resolved)
             fields[fname] = finfo
 
             # Don't leak Field()/FieldInfo onto the class itself
@@ -143,6 +209,10 @@ class _ModelMeta(type):
             model_validators[:0] = list(getattr(base, "__validix_model_validators__", []))
 
         cls.model_fields = fields  # type: ignore[attr-defined]
+        unresolved = any(_has_forward_ref(finfo.annotation) for finfo in fields.values())
+        cls.__validix_unresolved__ = unresolved  # type: ignore[attr-defined]
+        # Keep the defining scope only while it's still needed for resolution.
+        cls.__validix_localns__ = localns if unresolved else None  # type: ignore[attr-defined]
         cls.__validix_field_validators__ = field_validators  # type: ignore[attr-defined]
         cls.__validix_model_validators__ = model_validators  # type: ignore[attr-defined]
         # Pre-compute the iteration views used in the hot path.
@@ -169,6 +239,10 @@ class BaseModel(metaclass=_ModelMeta):
     __validix_alias_map__: ClassVar[dict[str, str]] = {}
     __validix_fields_items__: ClassVar[tuple] = ()  # type: ignore[type-arg]
     __validix_known_keys__: ClassVar[frozenset[str]] = frozenset()
+    # Optional[...] rather than `| None`: get_type_hints() evaluates these
+    # class annotations at runtime, and Python 3.9 doesn't support `X | None`.
+    __validix_localns__: ClassVar[Optional[dict[str, Any]]] = None
+    __validix_unresolved__: ClassVar[bool] = False
 
     __slots__ = ("__dict__",)
 
@@ -197,6 +271,45 @@ class BaseModel(metaclass=_ModelMeta):
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    @classmethod
+    def model_rebuild(cls) -> None:
+        """Resolve forward references using the names visible to the caller.
+
+        Self-references and models defined later in the same module are
+        resolved automatically the first time the model is used. Call this
+        after defining the referenced models when they live inside a function,
+        where the model can't see names created after it.
+
+        Raises:
+            ConfigError: if an annotation still can't be resolved.
+        """
+
+        cls._resolve_forward_refs(_defining_namespace())
+
+    @classmethod
+    def _resolve_forward_refs(cls, extra_namespace: dict[str, Any] | None = None) -> None:
+        localns = dict(cls.__validix_localns__ or {})
+        if extra_namespace:
+            localns.update(extra_namespace)
+        pending = [f for f in cls.model_fields.values() if _has_forward_ref(f.annotation)]
+        if not pending:
+            cls.__validix_unresolved__ = False
+            return
+        try:
+            hints = _resolve_type_hints(cls, localns)
+        except Exception as exc:
+            names = ", ".join(repr(f.name) for f in pending)
+            raise ConfigError(
+                f"{cls.__name__} has field annotations that could not be resolved "
+                f"({names}): {exc}. Define the referenced types before using the model, "
+                f"or call {cls.__name__}.model_rebuild() once they exist."
+            ) from exc
+        for finfo in pending:
+            if finfo.name in hints:
+                _set_annotation(finfo, hints[finfo.name])
+        cls.__validix_unresolved__ = any(_has_forward_ref(f.annotation) for f in pending)
+        cls.__validix_localns__ = localns if cls.__validix_unresolved__ else None
+
     @classmethod
     def model_validate(cls, data: Any) -> BaseModel:
         if isinstance(data, cls):
@@ -305,6 +418,8 @@ class BaseModel(metaclass=_ModelMeta):
     # ------------------------------------------------------------------
     def _validate_data(self, data: Mapping[str, Any]) -> tuple[dict[str, Any], list[ErrorDetail]]:
         cls = type(self)
+        if cls.__validix_unresolved__:
+            cls._resolve_forward_refs()
         cfg = cls.model_config
         # Fast paths cached on the class by the metaclass:
         fields_items = cls.__validix_fields_items__
