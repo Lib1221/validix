@@ -40,6 +40,21 @@ from validix.validators import (
 
 __all__ = ["BaseModel", "ModelConfig"]
 
+# With aliases and populate_by_name=False, an input that uses a field's
+# attribute name instead of its alias is parked under this prefix so it can
+# go through the extra-key handling without clashing with the field itself.
+_DISALLOWED_PREFIX = "_disallowed:"
+
+
+def _is_parked(key: Any) -> bool:
+    return isinstance(key, str) and key.startswith(_DISALLOWED_PREFIX)
+
+
+def _input_key(key: Any) -> Any:
+    """The key as the caller wrote it, without the internal parking prefix."""
+
+    return key[len(_DISALLOWED_PREFIX) :] if _is_parked(key) else key
+
 
 class ModelConfig:
     """Per-model configuration (override on a subclass).
@@ -365,13 +380,27 @@ class BaseModel(metaclass=_ModelMeta):
 
     def model_dump(self, *, by_alias: bool = False, exclude_none: bool = False) -> dict[str, Any]:
         out: dict[str, Any] = {}
-        for fname, finfo in type(self).model_fields.items():
+        fields = type(self).model_fields
+        for fname, finfo in fields.items():
             value = getattr(self, fname)
             if exclude_none and value is None:
                 continue
             key = finfo.alias if (by_alias and finfo.alias is not None) else fname
             out[key] = _to_python(value, by_alias=by_alias, exclude_none=exclude_none)
+        for key, value in self._extras().items():
+            if exclude_none and value is None:
+                continue
+            out[key] = _to_python(value, by_alias=by_alias, exclude_none=exclude_none)
         return out
+
+    def _extras(self) -> dict[str, Any]:
+        """Keys kept by ``extra='allow'``, in the order they were given."""
+
+        cls = type(self)
+        if cls.model_config.extra != "allow":
+            return {}
+        fields = cls.model_fields
+        return {k: v for k, v in self.__dict__.items() if k not in fields}
 
     def model_dump_json(
         self,
@@ -400,6 +429,7 @@ class BaseModel(metaclass=_ModelMeta):
     # ------------------------------------------------------------------
     def __repr__(self) -> str:
         parts = [f"{n}={getattr(self, n)!r}" for n in type(self).model_fields]
+        parts += [f"{k}={v!r}" for k, v in self._extras().items()]
         return f"{self.__class__.__name__}({', '.join(parts)})"
 
     def __eq__(self, other: object) -> bool:
@@ -459,7 +489,7 @@ class BaseModel(metaclass=_ModelMeta):
                     if fname in mutable_data:
                         # Move the value to a synthetic key so it surfaces
                         # via the extras pipeline below if extra='forbid'.
-                        mutable_data[f"_disallowed:{fname}"] = mutable_data.pop(fname)
+                        mutable_data[_DISALLOWED_PREFIX + fname] = mutable_data.pop(fname)
             for alias, fname in alias_map.items():
                 if alias in mutable_data and fname not in mutable_data:
                     mutable_data[fname] = mutable_data.pop(alias)
@@ -474,7 +504,7 @@ class BaseModel(metaclass=_ModelMeta):
             for k in extras:
                 errors.append(
                     ErrorDetail(
-                        loc=(k,),
+                        loc=(_input_key(k),),
                         msg="extra fields are not permitted",
                         type="extra_forbidden",
                         input=mutable_data[k],
@@ -540,10 +570,13 @@ class BaseModel(metaclass=_ModelMeta):
 
             validated[fname] = value
 
-        # Pass through extra keys when extra=allow
+        # Pass through extra keys when extra=allow. A field's attribute name
+        # supplied where only its alias is accepted isn't kept: storing it would
+        # shadow the field itself.
         if cfg.extra == "allow":
             for k in extras:
-                validated[k] = mutable_data[k]
+                if not _is_parked(k):
+                    validated[k] = mutable_data[k]
 
         return validated, errors
 
