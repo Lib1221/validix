@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A field's attribute name passed where only its alias is accepted no longer
   surfaces as `_disallowed:<name>`. `extra='forbid'` reports it under the name
   that was passed, and `extra='allow'` doesn't keep it on the instance.
+- On Python 3.9, a subclass that declares no fields of its own no longer resets
+  the fields it inherits. Their `Field()` constraints, defaults and aliases
+  used to be dropped.
 
 ## [0.1.0] - 2026-04-24
 

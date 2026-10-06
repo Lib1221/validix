@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import json
 import sys
 from collections.abc import Mapping
@@ -113,6 +114,19 @@ def _has_forward_ref(tp: Any) -> bool:
     return any(_has_forward_ref(arg) for arg in args)
 
 
+def _own_annotations(cls: type) -> dict[str, Any]:
+    """Annotations written in *cls* itself, not inherited from its bases.
+
+    On Python 3.9, ``cls.__annotations__`` on a class that declares none falls
+    through to the base class's dict, which would make a plain subclass
+    re-declare (and reset) every inherited field.
+    """
+
+    if sys.version_info >= (3, 10):
+        return dict(inspect.get_annotations(cls))
+    return dict(cls.__dict__.get("__annotations__", {}))  # pragma: no cover - 3.9 only
+
+
 def _set_annotation(finfo: FieldInfo, annotation: Any) -> None:
     finfo.annotation = annotation
     finfo.required = not finfo.has_default and not is_optional(annotation)
@@ -177,7 +191,7 @@ class _ModelMeta(type):
             if _has_forward_ref(finfo.annotation) and fname in hints:
                 _set_annotation(finfo, hints[fname])
 
-        own_annotations = dict(getattr(cls, "__annotations__", {}))
+        own_annotations = _own_annotations(cls)
 
         for fname, annotation in own_annotations.items():
             if fname.startswith("_") or fname == "model_config":
