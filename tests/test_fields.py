@@ -63,6 +63,26 @@ def test_numeric_constraints() -> None:
         M(n=3)
 
 
+@pytest.mark.parametrize("value", [True, False])
+@pytest.mark.parametrize("strict", [False, True])
+def test_constrained_numbers_reject_booleans(value: bool, strict: bool) -> None:
+    """bool is a subclass of int, but constrained int and float fields must not
+    accept True/False (#7). The value is rejected before constraints run:
+    coercion_error in lenient mode, type_error in strict mode."""
+
+    class M(BaseModel):
+        n: int = Field(gt=0, strict=strict)
+        x: float = Field(ge=0, strict=strict)
+
+    with pytest.raises(ValidationError) as ctx:
+        M(n=value, x=value)
+    expected = "type_error" if strict else "coercion_error"
+    assert [(e["loc"], e["type"]) for e in ctx.value.errors()] == [
+        (["n"], expected),
+        (["x"], expected),
+    ]
+
+
 def test_pattern_matching() -> None:
     class M(BaseModel):
         sku: str = Field(pattern=r"^[A-Z]{3}-\d{4}$")
