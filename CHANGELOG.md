@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#14](https://github.com/Lib1221/validix/issues/14)).
 - An annotation that can't be resolved now raises `ConfigError` when the model
   is first used, instead of silently skipping validation.
+- With `extra='allow'`, the extra keys kept on the instance now appear in
+  `model_dump()`, `model_dump_json()` and the repr, after the declared fields
+  ([#11](https://github.com/Lib1221/validix/issues/11)).
+- A field's attribute name passed where only its alias is accepted no longer
+  surfaces as `_disallowed:<name>`. `extra='forbid'` reports it under the name
+  that was passed, and `extra='allow'` doesn't keep it on the instance.
 
 ## [0.1.0] - 2026-04-24
 

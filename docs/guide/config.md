@@ -16,7 +16,7 @@ class Strict(BaseModel):
 | Option              | Default    | Description                                            |
 | ------------------- | ---------- | ------------------------------------------------------ |
 | `strict`            | `False`    | Disable lenient coercion (`"42"` → `42`, etc.).        |
-| `extra`             | `"ignore"` | What to do with unknown keys: `"ignore"`, `"allow"` (keep them on the instance), `"forbid"` (raise `extra_forbidden`). |
+| `extra`             | `"ignore"` | What to do with unknown keys: `"ignore"`, `"allow"` (keep them on the instance and include them in `model_dump()`), `"forbid"` (raise `extra_forbidden`). |
 | `frozen`            | `False`    | Make instances immutable; assignment raises `ConfigError`, instances become hashable. |
 | `populate_by_name`  | `False`    | Allow input by both alias and original attribute name. |
 
