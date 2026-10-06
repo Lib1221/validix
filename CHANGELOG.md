@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The README and getting-started page no longer say `pip install validix`,
+  since the package isn't on PyPI yet. They show how to install from GitHub
+  ([#18](https://github.com/Lib1221/validix/issues/18)).
 - Forward references are resolved: self-referencing models, references to
   models defined later in the module, and models defined inside functions.
   These annotations used to stay as strings and the fields weren't validated

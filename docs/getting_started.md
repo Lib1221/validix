@@ -2,9 +2,13 @@
 
 ## Install
 
+validix isn't on PyPI yet. Install it from GitHub:
+
 ```bash
-pip install validix
+pip install "git+https://github.com/Lib1221/validix.git"
 ```
+
+Add `@v0.1.0` to the URL to pin the last tagged release.
 
 `validix` requires Python 3.9 or newer and has no required runtime dependencies.
 
