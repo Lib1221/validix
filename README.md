@@ -39,9 +39,17 @@ except ValidationError as exc:
 
 ## Installation
 
+validix isn't on PyPI yet, so install it from GitHub:
+
 ```bash
-pip install validix
+pip install "git+https://github.com/Lib1221/validix.git"
 ```
+
+Add `@v0.1.0` to the URL to pin the last tagged release instead of `main`.
+
+Don't run `pip install validix` until it's published there: the name isn't
+registered on PyPI, so that either fails or, if someone else claims the name,
+installs an unrelated package.
 
 Requires **Python 3.9+**.
 
