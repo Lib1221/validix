@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from validix import BaseModel, Field
+import pytest
+
+from validix import BaseModel, Field, ValidationError
 
 
 def test_optional_with_default_factory_preserves_none() -> None:
@@ -61,3 +63,23 @@ def test_populate_by_name_accepts_both_alias_and_attribute_name() -> None:
 
     instance = M(fullName="Ada", full_name="Ada")
     assert instance.full_name == "Ada"
+
+
+def test_subclass_without_own_fields_keeps_inherited_ones() -> None:
+    """Regression: on Python 3.9 a subclass that declares no fields of its own
+    read its parent's annotations as its own and rebuilt every field, dropping
+    the parent's Field() constraints, defaults and aliases."""
+
+    class Parent(BaseModel):
+        n: int = Field(gt=0)
+        label: str = Field(default="x", alias="lbl")
+
+    class Child(Parent):
+        def describe(self) -> str:
+            return f"{self.label}:{self.n}"
+
+    with pytest.raises(ValidationError):
+        Child(n=-1)
+    assert Child(n=1).label == "x"
+    assert Child(n=1, lbl="y").describe() == "y:1"
+    assert Child.model_fields["n"].gt == 0
